@@ -1,0 +1,59 @@
+name: Deploy portfolio to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Check out the portfolio source
+        uses: actions/checkout@v6
+        with:
+          repository: Siddhesh-Dandekar/portfolio
+          ref: main
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: source/package-lock.json
+      - uses: actions/configure-pages@v5
+      - name: Install dependencies
+        working-directory: source
+        run: npm ci
+      - name: Build the portfolio for the root URL
+        working-directory: source
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: source/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
